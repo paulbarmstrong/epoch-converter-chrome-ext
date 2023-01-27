@@ -1,11 +1,14 @@
 
-let enabled = true
 const toggleButton = document.querySelector("#toggleButton")
+chrome.storage.local.get("enabled", res => update(res.enabled ? true : false))
 toggleButton.onclick = function toggle() {
-	console.log(toggleButton)
-	enabled = !enabled
-	toggleButton.textContent = enabled ? "toggle_on" : "toggle_off"
+	chrome.storage.local.get("enabled", res => update(res.enabled ? false : true))
+}
+
+function update(newEnabled) {
+	chrome.storage.local.set({enabled: newEnabled})
+	toggleButton.textContent = newEnabled ? "toggle_on" : "toggle_off"
 	chrome.tabs.query({currentWindow: true, active: true}, function (tabs) {
-        chrome.tabs.sendMessage(tabs[0].id, enabled);
+        chrome.tabs.sendMessage(tabs[0].id, newEnabled)
     })
 }
