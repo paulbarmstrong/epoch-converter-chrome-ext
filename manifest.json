@@ -1,0 +1,19 @@
+{
+	"name": "Epoch Converter",
+	"description": "Show ISO8601 timestamps on epoch timestamps.",
+	"version": "1.0",
+	"manifest_version": 3,
+	"action": {
+		"default_popup": "index.html",
+		"default_title": "Open the popup"
+	},
+	"content_scripts": [
+		{
+		  "js": ["scripts/content.js"],
+		  "matches": [
+			"https://developer.chrome.com/docs/extensions/*",
+			"https://developer.chrome.com/docs/webstore/*"
+		  ]
+		}
+	  ]
+ }
