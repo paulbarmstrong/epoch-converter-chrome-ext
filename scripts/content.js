@@ -35,8 +35,8 @@ function getEpochElements() {
 function tagEpochElements(elements) {
 	elements
 		.filter(el => {
-			if (!isStringPositiveInteger(el.textContent)) return false
-			const num = parseInt(el.textContent)
+			if (!isStringPositiveInteger(el.outerText)) return false
+			const num = parseInt(el.outerText)
 			return (
 				(num > tenYearsAgoEpochMillis && num < tenYearsFutureEpochMillis) ||
 				(num > tenYearsAgoEpochMillis/1000 && num < tenYearsFutureEpochMillis/1000)
@@ -45,11 +45,11 @@ function tagEpochElements(elements) {
 		.forEach(el => {
 			if (!epochElements.has(el)) {
 				epochElements.set(el, {
-					existingTextContent: el.textContent
+					existingText: el.outerText
 				})
 				el.addEventListener("mouseup", toggleIsoMode)
 			} else {
-				epochElements.get(el).existingTextContent = el.textContent
+				epochElements.get(el).existingText = el.outerText
 			}
 		})
 	refreshEpoch()
@@ -58,7 +58,7 @@ function tagEpochElements(elements) {
 function untagEpochElements() {
 	getEpochElements().forEach(([el, props]) => {
 		el.removeEventListener("mouseup", toggleIsoMode)
-		el.textContent = props.existingTextContent
+		//el.outerText = props.existingText
 	})
 	epochElements = new Map()
 }
@@ -69,18 +69,22 @@ function toggleIsoMode() {
 }
 
 function refreshEpoch() {
+	console.log("refresh epoch")
 	getEpochElements().forEach(([el, props]) => {
+		observer.disconnect()
 		if (isoMode) {
-			const num = parseInt(props.existingTextContent)
+			const num = parseInt(props.existingText)
 			const epochMillis = (num > tenYearsAgoEpochMillis && num < tenYearsFutureEpochMillis) ? (
 				num
 			) : (
 				num * 1000
 			)
-			el.textContent = (new Date(epochMillis)).toISOString()
+			el.firstChild.textContent = (new Date(epochMillis)).toISOString()
+			console.log(el.firstChild.data, el.firstChild)
 		} else {
-			el.textContent = props.existingTextContent
+			el.firstChild.textContent = props.existingText
 		}
+		observer.observe(document.body, { attributes: true, childList: true, subtree: true })
 	})
 }
 
