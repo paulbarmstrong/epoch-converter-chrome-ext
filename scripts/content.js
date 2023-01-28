@@ -3,23 +3,34 @@ const tenYearsMillis = 1000 * 60 * 60 * 24 * 365 * 5
 const tenYearsAgoEpochMillis = Date.now() - tenYearsMillis
 const tenYearsFutureEpochMillis = Date.now() + tenYearsMillis
 let isoMode = false
+const observer = new MutationObserver((mutations) => {
+	tagEpochElements(mutations.map(mutation => mutation.target))
+})
 
 chrome.runtime.onMessage.addListener(enable => {
+	onChangeEnabledState(enable)
+})
+
+chrome.storage.local.get("enabled", res => {
+	onChangeEnabledState(res.enabled)
+})
+
+function onChangeEnabledState(enable) {
 	if (enable) {
-		tagEpochElements()
-		document.addEventListener("DOMNodeInserted", tagEpochElements)
+		tagEpochElements(Array.from(document.getElementsByTagName("*")))
+		observer.observe(document.body, { attributes: true, childList: true, subtree: true })
 	} else {
-		document.removeEventListener("DOMNodeInserted", tagEpochElements)
+		observer.disconnect()
 		untagEpochElements()
 	}
-})
+}
 
 function getEpochElements() {
 	return Array.from(document.querySelectorAll(".epochConverter"))
 }
 
-function tagEpochElements() {
-	Array.from(document.getElementsByTagName("*"))
+function tagEpochElements(elements) {
+	elements
 		.filter(el => {
 			if (!isStringPositiveInteger(el.textContent)) return false
 			const num = parseInt(el.textContent)
@@ -29,13 +40,15 @@ function tagEpochElements() {
 			)
 		})
 		.forEach(el => {
-			el.addEventListener("mouseup", toggleIsoMode)
 			el.existingTextContent = el.textContent
-			if (el.existingCursor === undefined) el.existingCursor = el.style.cursor
-			if (el.existingTextDecoration === undefined) el.existingTextDecoration = el.style.textDecoration
-			el.style.cursor = "pointer"
-			el.style.textDecoration = "underline dotted"
-			if (!el.classList.contains("epochConverter")) el.classList.add("epochConverter")
+			if (!el.classList.contains("epochConverter")) {
+				el.addEventListener("mouseup", toggleIsoMode)
+				if (el.existingCursor === undefined) el.existingCursor = el.style.cursor
+				if (el.existingTextDecoration === undefined) el.existingTextDecoration = el.style.textDecoration
+				el.style.cursor = "pointer"
+				el.style.textDecoration = "underline dotted"
+				el.classList.add("epochConverter")
+			}
 		})
 	refreshEpoch()
 }
