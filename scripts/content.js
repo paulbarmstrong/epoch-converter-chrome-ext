@@ -7,6 +7,8 @@ const observer = new MutationObserver((mutations) => {
 	tagEpochElements(mutations.map(mutation => mutation.target))
 })
 
+let epochElements = new Map()
+
 chrome.runtime.onMessage.addListener(enable => {
 	onChangeEnabledState(enable)
 })
@@ -26,7 +28,8 @@ function onChangeEnabledState(enable) {
 }
 
 function getEpochElements() {
-	return Array.from(document.querySelectorAll(".epochConverter"))
+	epochElements = new Map(Array.from(epochElements.entries()).filter(([k, v]) => k !== undefined))
+	return Array.from(epochElements.entries())
 }
 
 function tagEpochElements(elements) {
@@ -40,30 +43,24 @@ function tagEpochElements(elements) {
 			)
 		})
 		.forEach(el => {
-			el.existingTextContent = el.textContent
-			if (!el.classList.contains("epochConverter")) {
+			if (!epochElements.has(el)) {
+				epochElements.set(el, {
+					existingTextContent: el.textContent
+				})
 				el.addEventListener("mouseup", toggleIsoMode)
-				if (el.existingCursor === undefined) el.existingCursor = el.style.cursor
-				if (el.existingTextDecoration === undefined) el.existingTextDecoration = el.style.textDecoration
-				el.style.cursor = "pointer"
-				el.style.textDecoration = "underline dotted"
-				el.classList.add("epochConverter")
+			} else {
+				epochElements.get(el).existingTextContent = el.textContent
 			}
 		})
 	refreshEpoch()
 }
 
 function untagEpochElements() {
-	getEpochElements().forEach(el => {
+	getEpochElements().forEach(([el, props]) => {
 		el.removeEventListener("mouseup", toggleIsoMode)
-		el.textContent = el.existingTextContent
-		el.style.textDecoration = el.existingTextDecoration
-		el.style.cursor = el.existingCursor
-		el.classList.remove("epochConverter")
-		delete el.existingTextContent
-		delete el.existingTextDecoration
-		delete el.existingCursor
+		el.textContent = props.existingTextContent
 	})
+	epochElements = new Map()
 }
 
 function toggleIsoMode() {
@@ -72,9 +69,9 @@ function toggleIsoMode() {
 }
 
 function refreshEpoch() {
-	getEpochElements().forEach(el => {
+	getEpochElements().forEach(([el, props]) => {
 		if (isoMode) {
-			const num = parseInt(el.existingTextContent)
+			const num = parseInt(props.existingTextContent)
 			const epochMillis = (num > tenYearsAgoEpochMillis && num < tenYearsFutureEpochMillis) ? (
 				num
 			) : (
@@ -82,7 +79,7 @@ function refreshEpoch() {
 			)
 			el.textContent = (new Date(epochMillis)).toISOString()
 		} else {
-			el.textContent = el.existingTextContent
+			el.textContent = props.existingTextContent
 		}
 	})
 }
