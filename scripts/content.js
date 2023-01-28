@@ -58,7 +58,7 @@ function tagEpochElements(elements) {
 function untagEpochElements() {
 	getEpochElements().forEach(([el, props]) => {
 		el.removeEventListener("mouseup", toggleIsoMode)
-		//el.outerText = props.existingText
+		setText(el, props.existingText)
 	})
 	epochElements = new Map()
 }
@@ -69,9 +69,7 @@ function toggleIsoMode() {
 }
 
 function refreshEpoch() {
-	console.log("refresh epoch")
 	getEpochElements().forEach(([el, props]) => {
-		observer.disconnect()
 		if (isoMode) {
 			const num = parseInt(props.existingText)
 			const epochMillis = (num > tenYearsAgoEpochMillis && num < tenYearsFutureEpochMillis) ? (
@@ -79,15 +77,19 @@ function refreshEpoch() {
 			) : (
 				num * 1000
 			)
-			el.firstChild.textContent = (new Date(epochMillis)).toISOString()
-			console.log(el.firstChild.data, el.firstChild)
+			setText(el, (new Date(epochMillis)).toISOString())
 		} else {
-			el.firstChild.textContent = props.existingText
+			setText(el, props.existingText)
 		}
-		observer.observe(document.body, { attributes: true, childList: true, subtree: true })
 	})
 }
 
 function isStringPositiveInteger(str) {
 	return /^[0-9]+$/.test(str)
+}
+
+function setText(el, text) {
+	let target = el
+	while (target.firstChild) target = target.firstChild
+	target.textContent = text
 }
