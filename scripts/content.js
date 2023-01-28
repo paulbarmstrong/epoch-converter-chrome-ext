@@ -1,10 +1,16 @@
-const isoRegex = /\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+/
 const tenYearsMillis = 1000 * 60 * 60 * 24 * 365 * 5
 const tenYearsAgoEpochMillis = Date.now() - tenYearsMillis
 const tenYearsFutureEpochMillis = Date.now() + tenYearsMillis
 let isoMode = false
+let enabledMode = false
+let initialScanDone = false
 const observer = new MutationObserver((mutations) => {
-	tagEpochElements(mutations.map(mutation => mutation.target))
+	if (initialScanDone) {
+		tagEpochElements(mutations.map(mutation => mutation.target))
+	} else {
+		tagEpochElements(Array.from(document.getElementsByTagName("*")))
+		initialScanDone = true
+	}
 })
 
 let epochElements = new Map()
@@ -18,13 +24,14 @@ chrome.storage.local.get("enabled", res => {
 })
 
 function onChangeEnabledState(enable) {
-	if (enable) {
+	if (enable && !enabledMode) {
 		tagEpochElements(Array.from(document.getElementsByTagName("*")))
 		observer.observe(document.body, { attributes: true, childList: true, subtree: true })
-	} else {
+	} else if (!enable && enabledMode) {
 		observer.disconnect()
 		untagEpochElements()
 	}
+	enabledMode = enable
 }
 
 function getEpochElements() {
@@ -33,24 +40,36 @@ function getEpochElements() {
 }
 
 function tagEpochElements(elements) {
-	elements
+	const candidates = elements
 		.filter(el => {
-			if (!isStringPositiveInteger(el.outerText)) return false
-			const num = parseInt(el.outerText)
+			if (!isStringPositiveInteger(el.textContent)) return false
+			const num = parseInt(el.textContent)
 			return (
 				(num > tenYearsAgoEpochMillis && num < tenYearsFutureEpochMillis) ||
 				(num > tenYearsAgoEpochMillis/1000 && num < tenYearsFutureEpochMillis/1000)
 			)
 		})
+
+	const candidatesAndEpoch = candidates.concat(...Array.from(epochElements.keys()))
+	candidates
+		.filter(el => {
+			let target = el
+			while (target.parentNode) {
+				if (candidatesAndEpoch.includes(target.parentNode)) return false
+				target = target.parentNode
+			}
+			return true
+		})
 		.forEach(el => {
 			if (!epochElements.has(el)) {
-				epochElements.set(el, {
-					existingText: el.outerText
-				})
 				el.addEventListener("mouseup", toggleIsoMode)
-			} else {
-				epochElements.get(el).existingText = el.outerText
+				epochElements.set(el, {
+					existingText: el.textContent,
+					existingCursor: el.style.cursor,
+					existingTextDecoration: el.style.textDecoration
+				})
 			}
+			epochElements.get(el).existingText = el.textContent
 		})
 	refreshEpoch()
 }
@@ -59,6 +78,8 @@ function untagEpochElements() {
 	getEpochElements().forEach(([el, props]) => {
 		el.removeEventListener("mouseup", toggleIsoMode)
 		setText(el, props.existingText)
+		el.style.cursor = props.existingCursor
+		el.style.textDecoration = props.existingTextDecoration
 	})
 	epochElements = new Map()
 }
@@ -81,6 +102,8 @@ function refreshEpoch() {
 		} else {
 			setText(el, props.existingText)
 		}
+		el.style.cursor = "pointer"
+		el.style.textDecoration = "underline dotted"
 	})
 }
 
